@@ -1,0 +1,82 @@
+.selecionar-container {
+  min-height: 100vh;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.selecionar-header {
+  text-align: center;
+  margin-bottom: 40px;
+  color: white;
+}
+
+.selecionar-header h1 {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.selecionar-header p {
+  font-size: 1.1rem;
+  opacity: 0.8;
+}
+
+.arquivos-lista {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.arquivo-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.arquivo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.arquivo-info h3 {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+  color: #1a1a2e;
+}
+
+.arquivo-info p {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.btn-selecionar {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-selecionar:hover {
+  background: #2980b9;
+}
+
+.loading, .error, .sem-arquivos {
+  text-align: center;
+  padding: 40px;
+  color: white;
+  font-size: 1.1rem;
+}
+
+.error {
+  color: #e74c3c;
+}
