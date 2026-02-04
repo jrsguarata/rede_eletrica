@@ -5,7 +5,8 @@ const TILES_URL = import.meta.env.VITE_TILES_URL || 'http://localhost:7800'
 
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 30000
+  timeout: 30000,
+  withCredentials: true
 })
 
 export const bdgdApi = {
@@ -47,6 +48,12 @@ export const bdgdApi = {
       params: { id_importado: idImportado }
     })
     return response.data
+  },
+
+  // Obtém metadados dos campos de uma tabela (descrições)
+  getMetadados: async (tabela) => {
+    const response = await api.get(`/api/metadados/${tabela}`)
+    return response.data.campos
   }
 }
 

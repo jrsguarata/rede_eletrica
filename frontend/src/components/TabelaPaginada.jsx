@@ -3,7 +3,7 @@ import './TabelaPaginada.css'
 
 const ITENS_POR_PAGINA = 10
 
-function TabelaPaginada({ dados, onVerDetalhes }) {
+function TabelaPaginada({ dados, onVerDetalhes, metadados = {} }) {
   const [paginaAtual, setPaginaAtual] = useState(1)
 
   // Calcula colunas a partir dos dados
@@ -13,6 +13,11 @@ function TabelaPaginada({ dados, onVerDetalhes }) {
       col !== 'geom' && col !== 'geometry'
     )
   }, [dados])
+
+  // Obtém descrição do campo dos metadados
+  const getDescricaoCampo = (campo) => {
+    return metadados[campo]?.descricao || ''
+  }
 
   // Dados da página atual
   const dadosPaginados = useMemo(() => {
@@ -61,9 +66,19 @@ function TabelaPaginada({ dados, onVerDetalhes }) {
           <thead>
             <tr>
               <th className="col-acao">Ação</th>
-              {colunas.slice(0, 6).map((col) => (
-                <th key={col}>{col}</th>
-              ))}
+              {colunas.slice(0, 6).map((col) => {
+                const descricao = getDescricaoCampo(col)
+                return (
+                  <th
+                    key={col}
+                    title={descricao}
+                    className={descricao ? 'com-tooltip' : ''}
+                  >
+                    {col}
+                    {descricao && <span className="tooltip-indicator">?</span>}
+                  </th>
+                )
+              })}
               {colunas.length > 6 && <th>...</th>}
             </tr>
           </thead>

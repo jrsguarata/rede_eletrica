@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import maplibregl from 'maplibre-gl'
 import { useBDGD } from '../context/BDGDContext'
+import { useAuth } from '../context/AuthContext'
 import { bdgdApi, getTileUrl, getSourceLayer } from '../services/api'
 import { getCorLayer } from '../utils/cores'
 import PainelLayers from '../components/PainelLayers'
@@ -31,6 +32,7 @@ function MapaPrincipal() {
     setAreaAtuacao
   } = useBDGD()
 
+  const { user } = useAuth()
   const navigate = useNavigate()
 
   // Redireciona se não houver arquivo selecionado
@@ -124,14 +126,18 @@ function MapaPrincipal() {
 
   // Controla visibilidade do mapa de fundo
   useEffect(() => {
-    if (!mapLoaded || !map.current) return
-    map.current.setLayoutProperty('osm-tiles', 'visibility', mapaFundo === 'osm' ? 'visible' : 'none')
-    map.current.setLayoutProperty('google-satellite-tiles', 'visibility', mapaFundo === 'google' ? 'visible' : 'none')
+    if (!mapLoaded || !map.current || !map.current.isStyleLoaded()) return
+    try {
+      map.current.setLayoutProperty('osm-tiles', 'visibility', mapaFundo === 'osm' ? 'visible' : 'none')
+      map.current.setLayoutProperty('google-satellite-tiles', 'visibility', mapaFundo === 'google' ? 'visible' : 'none')
+    } catch (err) {
+      console.warn('Erro ao alterar visibilidade do mapa de fundo:', err)
+    }
   }, [mapLoaded, mapaFundo])
 
   // Adiciona/remove layers conforme seleção
   useEffect(() => {
-    if (!mapLoaded || !map.current || !idImportado) return
+    if (!mapLoaded || !map.current || !idImportado || !map.current.isStyleLoaded()) return
 
     // Adiciona layers ativos
     entidadesGeo.forEach((entidade) => {
@@ -260,6 +266,7 @@ function MapaPrincipal() {
           ← Voltar
         </button>
         <h1>{arquivoSelecionado?.nome || 'BDGD'}</h1>
+        <span className="user-info">{user?.name}</span>
       </header>
 
       <div className="mapa-content">

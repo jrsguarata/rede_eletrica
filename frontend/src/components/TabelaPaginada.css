@@ -33,6 +33,25 @@ th {
   letter-spacing: 0.5px;
 }
 
+th.com-tooltip {
+  cursor: help;
+}
+
+th .tooltip-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  background: #ddd;
+  border-radius: 50%;
+  font-size: 0.6rem;
+  color: #666;
+  font-weight: bold;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
 td {
   font-size: 0.9rem;
   color: #333;

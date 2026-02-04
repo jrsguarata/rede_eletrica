@@ -87,6 +87,26 @@
   text-transform: uppercase;
   color: #888;
   letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.propriedade-item dt.com-tooltip {
+  cursor: help;
+}
+
+.tooltip-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  background: #e0e0e0;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  color: #666;
+  font-weight: bold;
 }
 
 .propriedade-item dd {

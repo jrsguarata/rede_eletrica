@@ -15,6 +15,7 @@ function ConsultaTabular() {
 
   const [dados, setDados] = useState([])
   const [total, setTotal] = useState(0)
+  const [metadados, setMetadados] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [registroSelecionado, setRegistroSelecionado] = useState(null)
@@ -31,6 +32,7 @@ function ConsultaTabular() {
       return
     }
     carregarDados()
+    carregarMetadados()
   }, [idImportado, tabela])
 
   const carregarDados = async () => {
@@ -45,6 +47,15 @@ function ConsultaTabular() {
       console.error(err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const carregarMetadados = async () => {
+    try {
+      const dados = await bdgdApi.getMetadados(tabela)
+      setMetadados(dados)
+    } catch (err) {
+      console.error('Erro ao carregar metadados:', err)
     }
   }
 
@@ -93,6 +104,7 @@ function ConsultaTabular() {
               <TabelaPaginada
                 dados={dados}
                 onVerDetalhes={handleVerDetalhes}
+                metadados={metadados}
               />
             )}
           </div>

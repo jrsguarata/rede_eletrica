@@ -3,6 +3,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, Set
 from app.database import get_db
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/api", tags=["BDGD"])
 
@@ -29,7 +30,7 @@ async def carregar_tabelas_permitidas(db: AsyncSession):
 # ============================================
 
 @router.get("/importados")
-async def listar_importados(db: AsyncSession = Depends(get_db)):
+async def listar_importados(db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     """Lista todos os arquivos BDGD importados"""
     result = await db.execute(text("""
         SELECT
@@ -50,7 +51,7 @@ async def listar_importados(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/entgeo")
-async def listar_entidades_geo(db: AsyncSession = Depends(get_db)):
+async def listar_entidades_geo(db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     """Lista entidades geográficas (layers do mapa)"""
     result = await db.execute(text("""
         SELECT nome, sigla, tipo_de_feicao, descricao
@@ -71,7 +72,7 @@ async def listar_entidades_geo(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/enttab")
-async def listar_entidades_tab(db: AsyncSession = Depends(get_db)):
+async def listar_entidades_tab(db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     """Lista entidades tabulares (sem geometria)"""
     result = await db.execute(text("""
         SELECT nome, sigla, descricao
@@ -93,7 +94,8 @@ async def listar_entidades_tab(db: AsyncSession = Depends(get_db)):
 @router.get("/arat/{id_importado}")
 async def obter_area_atuacao(
     id_importado: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
     """Retorna área de atuação e bbox para centralizar mapa"""
     result = await db.execute(text("""
@@ -135,7 +137,8 @@ async def obter_dados_tabulares(
     id_importado: int = Query(..., description="ID do arquivo importado"),
     limit: int = Query(200, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
     """Retorna dados tabulares (sem geometria)"""
 
@@ -187,7 +190,8 @@ async def obter_registro(
     tabela: str,
     cod_id: str,
     id_importado: int = Query(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
     """Retorna detalhes completos de um registro"""
 
@@ -236,7 +240,8 @@ async def obter_registro(
 @router.get("/tiles-config/{id_importado}")
 async def obter_config_tiles(
     id_importado: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
     """
     Retorna configuração das camadas para pg_tileserv
@@ -260,3 +265,32 @@ async def obter_config_tiles(
         })
 
     return {"id_importado": id_importado, "layers": layers}
+
+
+@router.get("/metadados/{tabela}")
+async def obter_metadados_tabela(
+    tabela: str,
+    db: AsyncSession = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    """
+    Retorna metadados dos campos de uma tabela (descrições dos campos)
+    Usado para exibir tooltips com descrição ao passar o mouse sobre os campos
+    """
+    result = await db.execute(text("""
+        SELECT campo, descricao, tipo, obrigatorio
+        FROM metadados_tabelas
+        WHERE tabela = :tabela
+        ORDER BY seq
+    """), {"tabela": tabela})
+
+    metadados = {}
+    for row in result:
+        campo = row[0]
+        metadados[campo] = {
+            "descricao": row[1] or "",
+            "tipo": row[2] or "",
+            "obrigatorio": row[3] == "Sim" if row[3] else False
+        }
+
+    return {"tabela": tabela, "campos": metadados}

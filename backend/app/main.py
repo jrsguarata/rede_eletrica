@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -5,6 +7,7 @@ from contextlib import asynccontextmanager
 from app.config import settings
 from app.database import AsyncSessionLocal
 from app.api.bdgd import router as bdgd_router, carregar_tabelas_permitidas
+from app.auth import router as auth_router, cleanup_expired_sessions
 
 
 @asynccontextmanager
@@ -13,8 +16,19 @@ async def lifespan(app: FastAPI):
     async with AsyncSessionLocal() as db:
         await carregar_tabelas_permitidas(db)
         print("✓ Tabelas permitidas carregadas")
+
+    # Cleanup de sessões expiradas a cada 30 minutos
+    async def session_cleanup_loop():
+        while True:
+            await asyncio.sleep(1800)
+            cleanup_expired_sessions()
+
+    cleanup_task = asyncio.create_task(session_cleanup_loop())
+
     yield
+
     # Shutdown
+    cleanup_task.cancel()
     print("Encerrando aplicação...")
 
 
@@ -35,6 +49,7 @@ app.add_middleware(
 )
 
 # Rotas
+app.include_router(auth_router)
 app.include_router(bdgd_router)
 
 
