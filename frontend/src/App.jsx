@@ -16,11 +16,13 @@ function SSOHandler({ children }) {
     const ssoToken = searchParams.get('sso_token')
     if (ssoToken) {
       setValidating(true)
-      // Remove token da URL imediatamente (seguranca)
+      const returnUrl = searchParams.get('return_url') || ''
+      // Remove tokens da URL imediatamente (seguranca)
       searchParams.delete('sso_token')
+      searchParams.delete('return_url')
       setSearchParams(searchParams, { replace: true })
       // Valida token via backend
-      loginWithSSOToken(ssoToken).finally(() => setValidating(false))
+      loginWithSSOToken(ssoToken, returnUrl).finally(() => setValidating(false))
     }
   }, [])
 

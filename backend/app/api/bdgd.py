@@ -37,8 +37,9 @@ async def listar_importados(db: AsyncSession = Depends(get_db), user: dict = Dep
             id_importado,
             nome
         FROM importados
+        WHERE id_companhia = :company_id
         ORDER BY id_importado DESC
-    """))
+    """), {"company_id": user.get("companyId")})
 
     importados = []
     for row in result:

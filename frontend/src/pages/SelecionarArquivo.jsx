@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBDGD } from '../context/BDGDContext'
+import { useAuth } from '../context/AuthContext'
 import { bdgdApi } from '../services/api'
 import './SelecionarArquivo.css'
 
@@ -10,6 +11,7 @@ function SelecionarArquivo() {
   const [error, setError] = useState(null)
 
   const { selecionarArquivo } = useBDGD()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -53,6 +55,12 @@ function SelecionarArquivo() {
   return (
     <div className="selecionar-container">
       <header className="selecionar-header">
+        <div className="header-top">
+          <span className="user-name">{user?.name}</span>
+          <button className="btn-sair" onClick={logout}>
+            Voltar ao SignOn
+          </button>
+        </div>
         <h1>Sistema de Gestão de Rede Elétrica - BDGD</h1>
         <p>Selecione o arquivo BDGD para visualização:</p>
       </header>

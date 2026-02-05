@@ -30,10 +30,10 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const loginWithSSOToken = async (ssoToken) => {
+  const loginWithSSOToken = async (ssoToken, returnUrl = '') => {
     try {
       setError(null)
-      const response = await api.post('/api/auth/sso', { sso_token: ssoToken })
+      const response = await api.post('/api/auth/sso', { sso_token: ssoToken, return_url: returnUrl })
       setUser(response.data.user)
       return true
     } catch (err) {
@@ -45,12 +45,16 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
+    const returnUrl = user?.returnUrl
     try {
       await api.post('/api/auth/logout')
     } catch (err) {
       // ignora erro de logout
     }
     setUser(false)
+    if (returnUrl) {
+      window.location.href = returnUrl
+    }
   }
 
   const value = {

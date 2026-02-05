@@ -32,7 +32,7 @@ function MapaPrincipal() {
     setAreaAtuacao
   } = useBDGD()
 
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
 
   // Redireciona se não houver arquivo selecionado
@@ -267,6 +267,7 @@ function MapaPrincipal() {
         </button>
         <h1>{arquivoSelecionado?.nome || 'BDGD'}</h1>
         <span className="user-info">{user?.name}</span>
+        <button className="btn-sair-header" onClick={logout}>Sair</button>
       </header>
 
       <div className="mapa-content">

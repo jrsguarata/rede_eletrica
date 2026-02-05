@@ -60,6 +60,7 @@ async def get_current_user(request: Request) -> dict:
         "name": session["name"],
         "role": session["role"],
         "companyId": session.get("companyId"),
+        "returnUrl": session.get("returnUrl", ""),
     }
 
 
@@ -108,12 +109,15 @@ async def sso_login(request: Request, response: Response):
 
     user = data["data"]["user"]
 
+    return_url = body.get("return_url", "")
+
     session_id = create_session({
         "id": user["id"],
         "email": user["email"],
         "name": user["name"],
         "role": user["role"],
         "companyId": user.get("companyId"),
+        "returnUrl": return_url,
     })
 
     response.set_cookie(
@@ -133,6 +137,7 @@ async def sso_login(request: Request, response: Response):
             "email": user["email"],
             "name": user["name"],
             "role": user["role"],
+            "returnUrl": return_url,
         },
     }
 

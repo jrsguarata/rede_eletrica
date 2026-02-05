@@ -14,9 +14,10 @@ Este documento descreve como integrar uma aplicacao externa que **nao possui JWT
 Usuario                SignOn                 App Externa
   |                      |                        |
   |-- Clica "Acessar" -->|                        |
-  |                      |-- Valida acesso ------->|
+  |                      |-- Valida acesso         |
   |                      |                        |
-  |<-- Redireciona com sso_token na URL ---------->|
+  |-- Navega na mesma aba (sso_token + return_url)->|
+  |   (SignOn sai de cena)                         |
   |                      |                        |
   |                      |<-- POST /validate ------|
   |                      |    (token + api_key)    |
@@ -25,17 +26,26 @@ Usuario                SignOn                 App Externa
   |                      |                        |
   |                      |    Cria sessao local    |
   |<-------------- Exibe app autenticada ---------|
+  |                                               |
+  |               ... usa o app ...               |
+  |                                               |
+  |<-- Clica "Voltar ao SignOn" (return_url) ------|
+  |                      |                        |
+  |-- SignOn recarrega -->|                        |
+  |   (mesma tela)       |                        |
 ```
 
 ### Passo a passo:
 
 1. O usuario acessa o painel do SignOn (`http://localhost:5178/dashboard/my-apps`)
 2. Clica em "Acessar" na aplicacao desejada
-3. O SignOn abre a URL da aplicacao em nova aba, adicionando o parametro `?sso_token={jwt_token}`
-4. A aplicacao externa recebe o token via query string
-5. A aplicacao chama o endpoint `POST /api/auth/validate` do SignOn para validar o token
-6. O SignOn retorna os dados do usuario autenticado
-7. A aplicacao cria uma sessao local (cookie, session, etc.) e redireciona o usuario para a pagina principal
+3. O SignOn **navega na mesma aba** para a URL da aplicacao, adicionando os parametros `?sso_token={jwt_token}&return_url={url_atual_do_signon}`
+4. O SignOn "sai de cena" — a aba agora mostra a aplicacao externa
+5. A aplicacao recebe o token e o `return_url` via query string
+6. A aplicacao chama o endpoint `POST /api/auth/validate` do SignOn para validar o token
+7. O SignOn retorna os dados do usuario autenticado
+8. A aplicacao cria uma sessao local (cookie, session, etc.), **salva o `return_url` na sessao**, e redireciona o usuario para a pagina principal
+9. Quando o usuario quiser voltar, clica em "Voltar ao SignOn" e e redirecionado para a tela exata de onde saiu
 
 ---
 
@@ -159,7 +169,12 @@ O `sso_token` e um JWT assinado com HS256. Seu payload contem:
 
 ### 5.1 Rota de Callback SSO
 
-Criar uma rota que receba o `sso_token` da query string, valide no SignOn, e crie uma sessao local.
+Criar uma rota que receba o `sso_token` e o `return_url` da query string, valide no SignOn, e crie uma sessao local.
+
+**URL recebida pelo app externo:**
+```
+http://localhost:3001/?sso_token=eyJhb...&return_url=http://localhost:5178/dashboard/my-apps
+```
 
 **Se a aplicacao usa Express.js (Node.js):**
 
@@ -188,7 +203,7 @@ const SIGNON_API_KEY = 'sk_signon_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; // Sua API 
 
 // Rota de callback SSO
 app.get('/sso/callback', async (req, res) => {
-  const { sso_token } = req.query;
+  const { sso_token, return_url } = req.query;
 
   if (!sso_token) {
     return res.status(400).send('Token SSO nao fornecido');
@@ -218,6 +233,11 @@ app.get('/sso/callback', async (req, res) => {
       };
       req.session.authenticated = true;
 
+      // Salvar return_url para o botao "Voltar ao SignOn"
+      if (return_url && typeof return_url === 'string') {
+        req.session.returnUrl = return_url;
+      }
+
       // Redirecionar para pagina principal
       return res.redirect('/');
     }
@@ -242,6 +262,7 @@ SIGNON_API_KEY = 'sk_signon_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 @app.route('/sso/callback')
 def sso_callback():
     sso_token = request.args.get('sso_token')
+    return_url = request.args.get('return_url')
 
     if not sso_token:
         return 'Token SSO nao fornecido', 400
@@ -268,6 +289,11 @@ def sso_callback():
                 'company_id': user.get('companyId'),
             }
             session['authenticated'] = True
+
+            # Salvar return_url para o botao "Voltar ao SignOn"
+            if return_url:
+                session['return_url'] = return_url
+
             return redirect('/')
 
         return 'Token SSO invalido', 401
@@ -284,6 +310,7 @@ def sso_callback():
 session_start();
 
 $sso_token = $_GET['sso_token'] ?? null;
+$return_url = $_GET['return_url'] ?? null;
 $SIGNON_API_URL = 'http://localhost:3004/api';
 $SIGNON_API_KEY = 'sk_signon_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
 
@@ -313,6 +340,12 @@ if ($httpCode === 200 && $data['success'] && $data['data']['valid']) {
     $user = $data['data']['user'];
     $_SESSION['user'] = $user;
     $_SESSION['authenticated'] = true;
+
+    // Salvar return_url para o botao "Voltar ao SignOn"
+    if ($return_url) {
+        $_SESSION['return_url'] = $return_url;
+    }
+
     header('Location: /');
     exit;
 }
@@ -336,9 +369,12 @@ function requireAuth(req, res, next) {
     return next();
   }
 
-  // Verificar se ha sso_token na query (primeiro acesso)
+  // Verificar se ha sso_token na query (primeiro acesso via SignOn)
   if (req.query.sso_token) {
-    return res.redirect(`/sso/callback?sso_token=${req.query.sso_token}`);
+    const params = new URLSearchParams();
+    params.set('sso_token', req.query.sso_token);
+    if (req.query.return_url) params.set('return_url', req.query.return_url);
+    return res.redirect(`/sso/callback?${params.toString()}`);
   }
 
   // Nao autenticado - redirecionar para mensagem de erro
@@ -359,6 +395,7 @@ app.use((req, res, next) => {
 ```python
 from functools import wraps
 from flask import session, request, redirect
+from urllib.parse import urlencode
 
 def require_auth(f):
     @wraps(f)
@@ -368,7 +405,11 @@ def require_auth(f):
 
         sso_token = request.args.get('sso_token')
         if sso_token:
-            return redirect(f'/sso/callback?sso_token={sso_token}')
+            params = {'sso_token': sso_token}
+            return_url = request.args.get('return_url')
+            if return_url:
+                params['return_url'] = return_url
+            return redirect(f'/sso/callback?{urlencode(params)}')
 
         return 'Acesso nao autorizado. Acesse pelo painel do SignOn.', 401
     return decorated
@@ -381,18 +422,66 @@ def index():
     return f'Bem-vindo, {user["name"]}!'
 ```
 
-### 5.3 Rota de Logout Local
+### 5.3 Botao "Voltar ao SignOn"
+
+A aplicacao deve exibir um botao/link que redireciona o usuario de volta ao SignOn na tela exata de onde ele veio. O `return_url` foi salvo na sessao durante o callback SSO.
+
+**Express.js (exemplo em template EJS/Pug/HTML):**
+
+```html
+<!-- No header/navbar da aplicacao -->
+<a href="/voltar-signon" class="btn">Voltar ao SignOn</a>
+```
 
 ```typescript
-// Express.js
-app.get('/logout', (req, res) => {
+// Rota que redireciona de volta ao SignOn
+app.get('/voltar-signon', (req, res) => {
+  const returnUrl = req.session.returnUrl || 'http://localhost:5178/dashboard';
+
+  // Destruir sessao local antes de voltar
   req.session.destroy(() => {
-    res.redirect('/');
+    res.redirect(returnUrl);
   });
 });
 ```
 
-### 5.4 Acessar Dados do Usuario nas Views
+**Flask (Python):**
+
+```python
+@app.route('/voltar-signon')
+def voltar_signon():
+    return_url = session.get('return_url', 'http://localhost:5178/dashboard')
+    session.clear()
+    return redirect(return_url)
+```
+
+**PHP:**
+
+```php
+<?php
+// voltar_signon.php
+session_start();
+$return_url = $_SESSION['return_url'] ?? 'http://localhost:5178/dashboard';
+session_destroy();
+header("Location: $return_url");
+exit;
+```
+
+> **Nota**: Ao voltar ao SignOn, a sessao do usuario no SignOn ainda esta ativa (tokens no localStorage do navegador). O SignOn detecta automaticamente e exibe a tela sem pedir login novamente.
+
+### 5.4 Rota de Logout Local
+
+```typescript
+// Express.js - logout que volta ao SignOn
+app.get('/logout', (req, res) => {
+  const returnUrl = req.session.returnUrl || 'http://localhost:5178/dashboard';
+  req.session.destroy(() => {
+    res.redirect(returnUrl);
+  });
+});
+```
+
+### 5.5 Acessar Dados do Usuario nas Views
 
 Apos autenticado, os dados do usuario ficam disponiveis na sessao:
 
@@ -405,6 +494,9 @@ app.get('/perfil', requireAuth, (req, res) => {
   // user.name     -> Nome completo
   // user.role     -> SUPER_ADMIN | COMPANY_ADMIN | COMPANY_OPERATOR
   // user.companyId -> UUID da empresa (null para SUPER_ADMIN)
+
+  const returnUrl = req.session.returnUrl;
+  // returnUrl -> URL do SignOn para o botao "Voltar"
 });
 ```
 
@@ -445,10 +537,11 @@ CORS_ORIGIN: http://localhost:5178,http://localhost:3001
 - [ ] Aplicacao registrada no SignOn (admin > Aplicacoes)
 - [ ] API Key anotada
 - [ ] Aplicacao vinculada a empresa do usuario (admin > Companhias > icone roxo)
-- [ ] Rota `/sso/callback` implementada na aplicacao externa
+- [ ] Rota `/sso/callback` implementada na aplicacao externa (recebendo `sso_token` e `return_url`)
 - [ ] Middleware de autenticacao protegendo rotas
+- [ ] Botao "Voltar ao SignOn" implementado (usando `return_url` da sessao)
 - [ ] URL da aplicacao configurada corretamente no SignOn
-- [ ] Testar: logar no SignOn > Minhas Aplicacoes > Acessar > verificar SSO
+- [ ] Testar fluxo completo: SignOn > Acessar app > Usar app > Voltar ao SignOn (mesma tela)
 
 ---
 
@@ -519,3 +612,5 @@ function getLocalRole(signonRole: string): string {
 | `Token invalido` | JWT expirado ou malformado | Usuario deve acessar novamente pelo SignOn |
 | `Usuario nao tem acesso` | Empresa do usuario nao tem a app licenciada | Associar a app a empresa no painel admin |
 | Sessao nao persiste | Configuracao de sessao incorreta | Verificar `express-session` ou equivalente |
+| "Voltar ao SignOn" nao funciona | `return_url` nao foi salvo na sessao | Verificar se o callback SSO salva `req.query.return_url` |
+| Ao voltar, SignOn pede login | Tokens no localStorage expiraram | O refresh token dura 7 dias; se expirou, e necessario logar de novo |
